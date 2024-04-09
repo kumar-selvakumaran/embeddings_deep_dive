@@ -1,0 +1,3 @@
+# running the container
+
+docker run -it -e DISPLAY=$DISPLAY    -v /tmp/.X11-unix:/tmp/.X11-unix    --network=host  --gpus all -p 8888:8888  --volume=/mnt/d/NEU/semester_2/prcv_5330/final_project:/app  --workdir=/app finproj_gdino:v0.0.1 /bin/bash
