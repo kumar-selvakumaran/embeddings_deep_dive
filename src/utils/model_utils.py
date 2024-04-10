@@ -22,43 +22,143 @@ GROUNDING_DINO_CHECKPOINT_PATH = os.path.join("../bin/model_files", "groundingdi
 SAM_CHECKPOINT_PATH = os.path.join("../bin/model_files", "sam_vit_h_4b8939.pth")
 
 
-class object_isolator:
-    def __init__(self):
-        self.segmentor = get_sam_model("vit_h")
-        self.detector = get_gdino_model()
-        self.object_dict = {}
-        self.available_classes = {}
-        self.prompt = ""
-        self.embedder = get_resnet_model()
 
+"""
+A class that takes in images, 
+
+stores data in the following format:
+
+object_data (NOTE : it only appending is allowed): 
+    # ith index in these arrays corresponds to ith row in the embedding matrix 
+    masks : np.arary([np.array(), np.array(), ... #total_objects])
+    bounding_boxes : np.array(), [#total_objects x 4]
+    source_path : np.array(strs)[1x4],
+    class_names : np.array(strs)[1x4]
+
+    
+embedding_data (NOTE : it only appending is allowed): 
+{
+    "<embedding_type>_<black/og background>" : np.array() , shape : [num_objects x flattened_embedding_size]
+    .
+    .
+    .
+}
+
+segmentor = SAM
+detector = grounding DINO
+
+embedder = embedder is a class following a universal template, where an arbitrary model is used to produce embeddings 
+given an image and a BB corresponding to the box
+
+usage : 
+    i) extracts objects based on a given prompt from each image of an image list, and stores relevant object details,
+    ii) runs the embedder for each of the objects, and appends the embedding matrix
+"""
+class object_embedder:
+    def __init__(self,
+                 segmentor = None,
+                 detector = None,
+                 embeddor = None):
+        
+        self.segmentor, self.detector, self.embeddor = segmentor, detector, embeddor
+
+        if segmentor is None:
+            segmentor = get_sam_model("vit_h")
+        
+        if detector is None:
+            self.detector = get_gdino_model()
+
+        self.masks = []
+        self.bboxes_xyxy = []
+        self.source_paths = []
+        self.class_names = []
+        self.embedding_matrix = None
+
+        if self.embeddor is None:
+            self.embeddor = get_resnet_model()
+            
     def detect_objects(self,
-                        image,
+                        image_paths,
                         classes,
-                        box_threshold,
-                        text_threshold,
-                        viz_outputs = False):
+                        box_threshold = 0.40,
+                        text_threshold = 0.25,
+                        viz_outputs = False,
+                        in_window = False):
         
+        classes.append('No Class')
+
+        print(f"\nclasses : {classes[:-1]}\n")
+
+        with torch.no_grad():
+            for image_path in image_paths:
+                image = cv2.imread(image_path)
+                detections = self.detector.predict_with_classes(
+                    image=image,
+                    classes=enhance_class_name(class_names=classes[:-1]),
+                    box_threshold=box_threshold,
+                    text_threshold=text_threshold
+                )
                 
-        detections = self.detector.predict_with_classes(
-            image=image,
-            classes=enhance_class_name(class_names=classes),
-            box_threshold=box_threshold,
-            text_threshold=text_threshold
-        )
+                detections.mask = segment(
+                    sam_predictor=self.segmentor,
+                    image=cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
+                    xyxy=detections.xyxy
+                )   
+
+                class_ids = detections.class_id
+                class_ids[class_ids == None] = len(classes) - 1
+                class_ids = class_ids.astype(int)
+                
+                classes = np.array(classes)
+                num_objects = len(detections)
+
+                if num_objects == 0:
+                    continue
+
+                self.masks += np.split(detections.mask, num_objects)
+
+                self.bboxes_xyxy += np.split(detections.xyxy, num_objects)
+
+                self.class_names += classes[class_ids].tolist()
+
+                result_str = "\n".join([f"{classes[class_id]} : {len(class_ids[class_ids == class_id])}" for class_id in np.unique(class_ids)])
+                print(f"results : \n {result_str}")
+
+                for i in range(num_objects):
+
+                    self.source_paths.append(image_path)
+
+                    masked_image = image * np.concatenate([detections.mask[i][..., None],
+                                detections.mask[i][..., None],
+                                detections.mask[i][..., None]], axis = 2)
+                
+                    ymin, xmin, ymax, xmax = detections.xyxy[i].astype(int)
+                    masked_image = masked_image[xmin:xmax, ymin:ymax, :]
+                        
+                    embedding = self.embeddor.predict(masked_image, return_embedding = True).detach().cpu().numpy()
+                    
+                    if self.embedding_matrix is None:
+                        self.embedding_matrix = embedding[None, ...]
+                    else:
+                        self.embedding_matrix = np.concatenate([self.embedding_matrix, embedding[None, ...]])
+
+                if viz_outputs == True:
+                    plot_detections(image,
+                                    detections,
+                                    classes,
+                                    in_window = in_window
+                                    )
         
-        detections.mask = segment(
-            sam_predictor=self.segmentor,
-            image=cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
-            xyxy=detections.xyxy
-        )   
 
-        class_ids  =np.array(detections.class_id)
-        class_groups = [np.nonzero(class_ids == class_id)[0].tolist() for class_id in np.unique(class_ids)]
-        object_dict = dict(zip(np.unique(class_ids), class_groups))
-        self.object_dict = object_dict
-
-        result_str = "\n".join([f"{classes[class_id]} : {len(class_groups)}" for class_id, class_groups in object_dict.items()])
-        print(f"results : \n {result_str}")
+    def plot_results(self,
+                     in_window = False):
+        
+            plot_detections(self.input_image,
+                            self.detections,
+                            self.prompt_classes,
+                            in_window = in_window
+                            )
+            
 
 
 class resnet_model_wrapper:
