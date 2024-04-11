@@ -5,6 +5,10 @@ import cv2
 import supervision as sv
 import torch
 import os
+from IPython.display import Image as im
+from IPython.display import display as dis
+
+from torchvision.ops import nms
 
 from segment_anything import sam_model_registry, SamPredictor
 from segment_anything import SamPredictor
@@ -14,6 +18,7 @@ from groundingdino.util.inference import Model
 from transformers import AutoImageProcessor, ResNetForImageClassification
 
 from .viz_utils import im_in_window
+from .data_utils import get_string_hash, load_object_from_file, save_object_to_file
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -72,6 +77,7 @@ class object_embedder:
         self.bboxes_xyxy = []
         self.source_paths = []
         self.class_names = []
+        self.confidences = []
         self.embedding_matrix = None
 
         if self.embeddor is None:
@@ -98,12 +104,22 @@ class object_embedder:
                     box_threshold=box_threshold,
                     text_threshold=text_threshold
                 )
-                
+
                 detections.mask = segment(
                     sam_predictor=self.segmentor,
                     image=cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
                     xyxy=detections.xyxy
                 )   
+
+                boxes = torch.tensor(detections.xyxy)
+                scores = torch.tensor(detections.confidence)
+
+                keep_inds = nms(boxes, scores, 0.99).cpu().numpy()
+
+                detections.xyxy = detections.xyxy[keep_inds]
+                detections.mask = detections.mask[keep_inds]
+                detections.confidence = detections.confidence[keep_inds]
+                detections.class_id = detections.class_id[keep_inds]
 
                 class_ids = detections.class_id
                 class_ids[class_ids == None] = len(classes) - 1
@@ -121,6 +137,8 @@ class object_embedder:
 
                 self.class_names += classes[class_ids].tolist()
 
+                self.confidences += detections.confidence.tolist()
+
                 result_str = "\n".join([f"{classes[class_id]} : {len(class_ids[class_ids == class_id])}" for class_id in np.unique(class_ids)])
                 print(f"results : \n {result_str}")
 
@@ -134,7 +152,10 @@ class object_embedder:
                 
                     ymin, xmin, ymax, xmax = detections.xyxy[i].astype(int)
                     masked_image = masked_image[xmin:xmax, ymin:ymax, :]
-                        
+
+                    cv2.imwrite("temp.jpg", cv2.resize(masked_image, (300,300)))
+                    dis(im("temp.jpg"))
+
                     embedding = self.embeddor.predict(masked_image, return_embedding = True).detach().cpu().numpy()
                     
                     if self.embedding_matrix is None:
@@ -149,6 +170,28 @@ class object_embedder:
                                     in_window = in_window
                                     )
         
+        self.save_data()
+        
+    def save_data(self):
+        
+        dataset_hash_key = " ".join(self.source_paths)        
+        dataset_hash_name = get_string_hash(dataset_hash_key)
+        
+        save_path_details = os.path.join("/app/bin/results/" , f'embedding_details_{dataset_hash_name}.pkl')
+        save_path_matrix = os.path.join("/app/bin/results/" , f'embedding_matrix_{dataset_hash_name}.pkl')
+        
+        data_object = {
+            "masks" : self.masks,
+            "bounding_boxes" : self.bboxes_xyxy,
+            "confidences" : self.confidences,
+            "class_names" : self.class_names,
+            "source_paths" : self.source_paths,
+            "embedding_matrix_path" : save_path_matrix
+        }
+
+        save_object_to_file(data_object, save_path_details)
+        save_object_to_file(self.embedding_matrix, save_path_matrix)
+
 
     def plot_results(self,
                      in_window = False):
