@@ -292,3 +292,4 @@ def plot_detections(image,
     else:
         im_in_window(annotated_image, "detections")
 
+
