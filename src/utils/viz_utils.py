@@ -119,36 +119,38 @@ def im_in_window(image,
     cv2.destroyAllWindows()
 
 
-def get_masked_crop(embedding_details, object_ind):
+def get_masked_crop(embedding_details, object_ind, masks_available = False):
     source_path = embedding_details['source_paths'][object_ind]
     image = cv2.imread(source_path)
-    mask = embedding_details["masks"][object_ind][0]
     bbox = embedding_details["bounding_boxes"][object_ind][0]
     class_name =  embedding_details["class_names"][object_ind]
     print(f"class name : {class_name}")
     print(f"source path : {source_path}")
     print(f"object_ind : {object_ind}")
-
-    masked_image = image * np.concatenate([mask[..., None],
-                                        mask[..., None],
-                                        mask[..., None]], axis = 2)
+    
+    if masks_available:
+        mask = embedding_details["masks"][object_ind][0]
+        image = image * np.concatenate([mask[..., None],
+                                            mask[..., None],
+                                            mask[..., None]], axis = 2)
+    
 
     ymin, xmin, ymax, xmax = bbox.astype(int)
-    masked_image = masked_image[xmin:xmax, ymin:ymax, :]
+    image = image[xmin:xmax, ymin:ymax, :]
 
-    return masked_image
+    return image
 
-def plot_neighbours(embedding_details, neighbour_inds):
+def plot_neighbours(embedding_details, neighbour_inds, masks_available = False):
         
     plotter = concise_ims_and_plots()
 
     num_embeddings, num_neighbours = neighbour_inds.shape
     for object_ind in range(num_embeddings):
-        masked_image = get_masked_crop(embedding_details, object_ind)
+        masked_image = get_masked_crop(embedding_details, object_ind, masks_available = masks_available)
         class_name = embedding_details["class_names"][object_ind]
         plotter.add_plot_data(masked_image, f"TARGET : {class_name}")
         for i, neighbour_ind in enumerate(neighbour_inds[object_ind]):
-            masked_image = get_masked_crop(embedding_details, neighbour_ind)
+            masked_image = get_masked_crop(embedding_details, neighbour_ind, masks_available = masks_available)
             class_name = embedding_details["class_names"][neighbour_ind]
             plotter.add_plot_data(masked_image, f"match {num_neighbours - i}: {class_name}")
 

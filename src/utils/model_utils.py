@@ -1,24 +1,14 @@
-
 import numpy as np
 from typing import List
 import cv2
 import supervision as sv
 import torch
 import os
-from IPython.display import Image as im
-from IPython.display import display as dis
 
 from torchvision.ops import nms
 
-from segment_anything import sam_model_registry, SamPredictor
-from segment_anything import SamPredictor
-
-from groundingdino.util.inference import Model
-
-from transformers import AutoImageProcessor, ResNetForImageClassification
-
 from .viz_utils import im_in_window
-from .data_utils import get_string_hash, load_object_from_file, save_object_to_file
+from .data_utils import get_string_hash, save_object_to_file
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -67,12 +57,6 @@ class object_embedder:
         
         self.segmentor, self.detector, self.embeddor = segmentor, detector, embeddor
 
-        if segmentor is None:
-            segmentor = get_sam_model("vit_h")
-        
-        if detector is None:
-            self.detector = get_gdino_model()
-
         self.masks = []
         self.bboxes_xyxy = []
         self.source_paths = []
@@ -80,16 +64,15 @@ class object_embedder:
         self.confidences = []
         self.embedding_matrix = None
 
-        if self.embeddor is None:
-            self.embeddor = get_resnet_model()
-            
     def detect_objects(self,
                         image_paths,
                         classes,
                         box_threshold = 0.40,
                         text_threshold = 0.25,
+                        do_segment = True,
                         viz_outputs = False,
-                        in_window = False):
+                        in_window = False,
+                        model_type = 'unknown'):
         
         classes.append('No Class')
 
@@ -97,7 +80,12 @@ class object_embedder:
 
         with torch.no_grad():
             for image_path in image_paths:
+                print(f"\nimage path : {image_path}\n")
                 image = cv2.imread(image_path)
+
+                """
+                detections class as done by GDINO should be made by future models as well
+                """
                 detections = self.detector.predict_with_classes(
                     image=image,
                     classes=enhance_class_name(class_names=classes[:-1]),
@@ -105,22 +93,34 @@ class object_embedder:
                     text_threshold=text_threshold
                 )
 
-                detections.mask = segment(
-                    sam_predictor=self.segmentor,
-                    image=cv2.cvtColor(image, cv2.COLOR_BGR2RGB),
-                    xyxy=detections.xyxy
-                )   
+                """
+                if self.segmentor is None, (which we pass if we dont want segmentation), then the segment functions should 
+                return masks corresponding to the bounding boxes.
+
+                the segment function will be unique to each segementor, whether it is sam or other models. so let 'segment'be a member function
+                of the self.segmentor object
+                """
+                if do_segment:
+                    detections.mask = self.segmentor.segment(
+                        # sam_predictor=self.segmentor,
+                        image=cv2.cvtColor(image.copy(), cv2.COLOR_BGR2RGB),
+                        xyxy=detections.xyxy
+                    )   
+                
 
                 boxes = torch.tensor(detections.xyxy)
                 scores = torch.tensor(detections.confidence)
 
+                # inter-class NMS, to wrong class Bounding Box duplicates
                 keep_inds = nms(boxes, scores, 0.99).cpu().numpy()
 
-                detections.xyxy = detections.xyxy[keep_inds]
-                detections.mask = detections.mask[keep_inds]
+                detections.xyxy = detections.xyxy[keep_inds]                
                 detections.confidence = detections.confidence[keep_inds]
                 detections.class_id = detections.class_id[keep_inds]
 
+                if do_segment:
+                    detections.mask = detections.mask[keep_inds]
+                
                 class_ids = detections.class_id
                 class_ids[class_ids == None] = len(classes) - 1
                 class_ids = class_ids.astype(int)
@@ -131,51 +131,39 @@ class object_embedder:
                 if num_objects == 0:
                     continue
 
-                self.masks += np.split(detections.mask, num_objects)
-
+                if do_segment:
+                    self.masks += np.split(detections.mask, num_objects)
+                
                 self.bboxes_xyxy += np.split(detections.xyxy, num_objects)
-
                 self.class_names += classes[class_ids].tolist()
-
                 self.confidences += detections.confidence.tolist()
+                self.source_paths += [image_path for i in range(num_objects)]
 
                 result_str = "\n".join([f"{classes[class_id]} : {len(class_ids[class_ids == class_id])}" for class_id in np.unique(class_ids)])
                 print(f"results : \n {result_str}")
 
-                for i in range(num_objects):
+                print(f"")
+                self.embedding_matrix = self.embeddor.add_new_embeddings(self.embedding_matrix,
+                                                                         image.copy(),
+                                                                         detections,
+                                                                         masks_available = do_segment)
 
-                    self.source_paths.append(image_path)
-
-                    masked_image = image * np.concatenate([detections.mask[i][..., None],
-                                detections.mask[i][..., None],
-                                detections.mask[i][..., None]], axis = 2)
-                
-                    ymin, xmin, ymax, xmax = detections.xyxy[i].astype(int)
-                    masked_image = masked_image[xmin:xmax, ymin:ymax, :]
-
-                    cv2.imwrite("temp.jpg", cv2.resize(masked_image, (300,300)))
-                    dis(im("temp.jpg"))
-
-                    embedding = self.embeddor.predict(masked_image, return_embedding = True).detach().cpu().numpy()
-                    
-                    if self.embedding_matrix is None:
-                        self.embedding_matrix = embedding[None, ...]
-                    else:
-                        self.embedding_matrix = np.concatenate([self.embedding_matrix, embedding[None, ...]])
+                print(f"embedding_matrix shape : {self.embedding_matrix.shape}")
 
                 if viz_outputs == True:
-                    plot_detections(image,
+                    plot_detections(image.copy(),
                                     detections,
                                     classes,
                                     in_window = in_window
                                     )
         
-        self.save_data()
+        self.save_data(model_type = model_type)
         
-    def save_data(self):
+    def save_data(self,
+                  model_type = 'unknown'):
         
-        dataset_hash_key = " ".join(self.source_paths)        
-        dataset_hash_name = get_string_hash(dataset_hash_key)
+        dataset_hash_key = " ".join(self.source_paths) 
+        dataset_hash_name = get_string_hash(dataset_hash_key)  + f"_{model_type}"   
         
         save_path_details = os.path.join("/app/bin/results/" , f'embedding_details_{dataset_hash_name}.pkl')
         save_path_matrix = os.path.join("/app/bin/results/" , f'embedding_matrix_{dataset_hash_name}.pkl')
@@ -189,6 +177,7 @@ class object_embedder:
             "embedding_matrix_path" : save_path_matrix
         }
 
+        print(f"\nsaved file name : {dataset_hash_name}\n")
         save_object_to_file(data_object, save_path_details)
         save_object_to_file(self.embedding_matrix, save_path_matrix)
 
@@ -202,68 +191,21 @@ class object_embedder:
                             in_window = in_window
                             )
             
-
-
-class resnet_model_wrapper:
-    def __init__(self):    
-        self.processor = AutoImageProcessor.from_pretrained("microsoft/resnet-50")
-        self.model = ResNetForImageClassification.from_pretrained("microsoft/resnet-50")
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+class custom_detections:
+    def __init__(self,
+                 xyxy,
+                 masks,
+                 confidences,
+                 class_ids):
         
-        self.model.to(self.device)
-
-    def predict(self, image, return_embedding = True):
-        inputs = self.processor(image, return_tensors="pt")
-        inputs.to(self.device)
-        with torch.no_grad():
-            if not return_embedding:
-                logits = self.model(**inputs).logits
-                predicted_label = logits.argmax(-1).item()
-                label_string = self.model.config.id2label[predicted_label]
-                return label_string
-            else:
-                embedding = self.model.resnet(**inputs)[1]
-                embedding = self.model.classifier[0](embedding)[0]
-                return embedding    
-        
-def check_model_paths():
-    
-    for imp_file in [GROUNDING_DINO_CHECKPOINT_PATH, GROUNDING_DINO_CONFIG_PATH, SAM_CHECKPOINT_PATH]:
-        if not os.path.isfile(imp_file):
-            print("\n WARNING !!!!!! : " , GROUNDING_DINO_CONFIG_PATH, " :  DOSENT EXIST:")
-        else:
-            print(imp_file, " exists")
-
-def get_sam_model(encoder_name = "vit_h"):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    SAM_ENCODER_VERSION = encoder_name
-    sam = sam_model_registry[SAM_ENCODER_VERSION](checkpoint=SAM_CHECKPOINT_PATH).to(device=device)
-    sam_predictor = SamPredictor(sam)
-    return sam_predictor
-
-def get_gdino_model():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    grounding_dino_model = Model(model_config_path=GROUNDING_DINO_CONFIG_PATH, model_checkpoint_path=GROUNDING_DINO_CHECKPOINT_PATH, device= device)
-    return grounding_dino_model
-
-def get_resnet_model():
-    model = resnet_model_wrapper()
-    return model
-
-def segment(sam_predictor: SamPredictor, image: np.ndarray, xyxy: np.ndarray) -> np.ndarray:
-    sam_predictor.set_image(image)
-    result_masks = []
-    for box in xyxy:
-        masks, scores, logits = sam_predictor.predict(
-            box=box,
-            multimask_output=True
-        )
-        index = np.argmax(scores)
-        result_masks.append(masks[index])
-    return np.array(result_masks)
-
-
+        if not(len(boxes) == len(masks) == len(confidences) == len(class_ids)):
+            print(f"\nthere must be same # of boxes ({len(boxes)}), masks ({len(masks)}), confs ({len(confidences)}), and cls_ids ({len(class_ids)}). ")
+            return -1
+        self.xyxy = xyxy
+        self.mask = masks
+        self.confidence = confidences
+        self.class_id = class_ids
+            
 def enhance_class_name(class_names: List[str]) -> List[str]:
     return [
         f"all {class_name}s"
@@ -275,7 +217,8 @@ def enhance_class_name(class_names: List[str]) -> List[str]:
 def plot_detections(image,
                     detections,
                     classes,
-                    in_window = False
+                    in_window = False,
+                    do_segment = True
                     ):
     box_annotator = sv.BoxAnnotator()
     mask_annotator = sv.MaskAnnotator()
@@ -283,13 +226,15 @@ def plot_detections(image,
         f"{classes[class_id]} {confidence:0.2f}"
         for _, _, confidence, class_id, _
         in detections]
-    annotated_image = mask_annotator.annotate(scene=image.copy(), detections=detections)
-    annotated_image = box_annotator.annotate(scene=annotated_image, detections=detections, labels=labels)
+    if do_segment:
+        image = mask_annotator.annotate(scene=image, detections=detections)
+
+    image = box_annotator.annotate(scene=image, detections=detections, labels=labels)
 
     if not in_window:
-        sv.plot_image(annotated_image, (16, 16))
+        sv.plot_image(image, (16, 16))
     
     else:
-        im_in_window(annotated_image, "detections")
+        im_in_window(image, "detections")
 
 
