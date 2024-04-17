@@ -62,17 +62,19 @@ class resnet_embedder:
         for i in range(num_objects):
             print(f"masks available {masks_available}")
             if masks_available:
-                image = image * np.concatenate([detections.mask[i][..., None],
+                masked_image = image.copy() * np.concatenate([detections.mask[i][..., None],
                             detections.mask[i][..., None],
                             detections.mask[i][..., None]], axis = 2)
-            print(f"skipped_segmentation")
+            else:
+                print(f"skipped_segmentation")
+                masked_image = image.copy()
             ymin, xmin, ymax, xmax = detections.xyxy[i].astype(int)
-            image = image[xmin:xmax, ymin:ymax, :]
+            cropped_image = masked_image[xmin:xmax, ymin:ymax, :]
 
-            cv2.imwrite("temp.jpg", cv2.resize(image, (300,300)))
+            cv2.imwrite("temp.jpg", cv2.resize(cropped_image, (300,300)))
             dis(im("temp.jpg"))
 
-            embedding = self.embeddor_model.predict(image, return_embedding = True).detach().cpu().numpy()
+            embedding = self.embeddor_model.predict(cropped_image, return_embedding = True).detach().cpu().numpy()
             
             if embedding_matrix is None:
                 embedding_matrix = embedding[None, ...]

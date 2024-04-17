@@ -140,7 +140,7 @@ def get_masked_crop(embedding_details, object_ind, masks_available = False):
 
     return image
 
-def plot_neighbours(embedding_details, neighbour_inds, masks_available = False):
+def plot_neighbours(embedding_details, neighbour_inds, masks_available = False, title = "enter model used as title"):
         
     plotter = concise_ims_and_plots()
 
@@ -154,7 +154,7 @@ def plot_neighbours(embedding_details, neighbour_inds, masks_available = False):
             class_name = embedding_details["class_names"][neighbour_ind]
             plotter.add_plot_data(masked_image, f"match {num_neighbours - i}: {class_name}")
 
-    plotter.viz_plot_data()
+    plotter.viz_plot_data(title = title)
 
 
 def initialize_maximally_spaced_colors(n_colors):
