@@ -73,6 +73,7 @@ class concise_ims_and_plots:
             fig, axs = plt.subplots(1, num_images, figsize=(self.xdim, self.ydim))
 
         fig.suptitle(title, fontsize = 30)
+
         
 
         for i in range(num_images):
@@ -86,8 +87,8 @@ class concise_ims_and_plots:
             else:
                 ax = axs.flat[i]
                 
-            ax.axis('on')
-            ax.set_title(self.titles[i])
+            ax.axis('off')
+            ax.set_title(self.titles[i], fontsize= 9)
             
             if hasattr(img, 'figure'):
                 for ax_child in img.axes:
@@ -95,7 +96,16 @@ class concise_ims_and_plots:
                         ax.plot(line.get_xdata(), line.get_ydata(), color=line.get_color())
             else:
                 ax.imshow(img[:, :, ::-1])
+
+        total_num_plots = (total_rows * square_size)
+        for i in range(total_num_plots - (total_num_plots - num_images), total_num_plots):
+            axs.flat[i].set_visible(False)
+            
+
+        plt.axis('off')
         plt.tight_layout()
+        # Adjust the spacing
+        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.1, hspace=0.23)
         plt.show()
 
 def get_bar_plot(data):
@@ -148,11 +158,11 @@ def plot_neighbours(embedding_details, neighbour_inds, masks_available = False, 
     for object_ind in range(num_embeddings):
         masked_image = get_masked_crop(embedding_details, object_ind, masks_available = masks_available)
         class_name = embedding_details["class_names"][object_ind]
-        plotter.add_plot_data(masked_image, f"TARGET : {class_name}")
+        plotter.add_plot_data(masked_image, f"T:{class_name}")
         for i, neighbour_ind in enumerate(neighbour_inds[object_ind]):
             masked_image = get_masked_crop(embedding_details, neighbour_ind, masks_available = masks_available)
             class_name = embedding_details["class_names"][neighbour_ind]
-            plotter.add_plot_data(masked_image, f"match {num_neighbours - i}: {class_name}")
+            plotter.add_plot_data(masked_image, f"M:{num_neighbours - i}: {class_name}")
 
     plotter.viz_plot_data(title = title)
 
