@@ -289,7 +289,6 @@ class yolo_model:
                     r, c = mem_starts_rowcol[ind].astype(int)
                     viz_emb[rowmin:rowmax, colmin:colmax] = 0.0
                     viz_emb[r,c] = 0.75
-
                         
                     frame = create_frame([viz_emb, vizimg], ["embedding", "results"], figsize=(10, 5))
                     

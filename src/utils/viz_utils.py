@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 import glob 
 import cv2
 
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
+
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 import numpy as np
@@ -53,7 +56,11 @@ class concise_ims_and_plots:
     def clear_plot_data(self):
         self.plot_data = []
 
-    def viz_plot_data(self, title="Image Grid", mode = "square"):
+    def viz_plot_data(self, title="Image Grid",
+                      mode = "square",
+                      subplot_title_hspace = 0.23,
+                      subplot_title_wspace = 0.1):
+        
         num_images = len(self.plot_data)
         grid_size = math.ceil(math.sqrt(num_images))
             
@@ -105,7 +112,12 @@ class concise_ims_and_plots:
         plt.axis('off')
         plt.tight_layout()
         # Adjust the spacing
-        plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=0.1, hspace=0.23)
+        plt.subplots_adjust(left=None,
+                            bottom=None,
+                            right=None,
+                            top=None,
+                            wspace=subplot_title_wspace,
+                            hspace=subplot_title_hspace)
         plt.show()
 
 def get_bar_plot(data):
@@ -129,14 +141,14 @@ def im_in_window(image,
     cv2.destroyAllWindows()
 
 
-def get_masked_crop(embedding_details, object_ind, masks_available = False):
+def get_masked_crop(embedding_details, object_ind, masks_available = False, show_full_img = False):
     source_path = embedding_details['source_paths'][object_ind]
     image = cv2.imread(source_path)
     bbox = embedding_details["bounding_boxes"][object_ind][0]
     class_name =  embedding_details["class_names"][object_ind]
-    print(f"class name : {class_name}")
-    print(f"source path : {source_path}")
-    print(f"object_ind : {object_ind}")
+    # print(f"class name : {class_name}")
+    # print(f"source path : {source_path}")
+    # print(f"object_ind : {object_ind}")
     
     if masks_available:
         mask = embedding_details["masks"][object_ind][0]
@@ -144,27 +156,46 @@ def get_masked_crop(embedding_details, object_ind, masks_available = False):
                                             mask[..., None],
                                             mask[..., None]], axis = 2)
     
+    if not show_full_img:
+        ymin, xmin, ymax, xmax = bbox.astype(int)
+        image = image[xmin:xmax, ymin:ymax, :]
 
-    ymin, xmin, ymax, xmax = bbox.astype(int)
-    image = image[xmin:xmax, ymin:ymax, :]
+    else:
+        ymin, xmin, ymax, xmax = bbox.astype(int)
+        vizimg = np.zeros_like(image)
+        vizimg[xmin:xmax, ymin:ymax, :] = image[xmin:xmax, ymin:ymax, :]
+        image = vizimg
 
     return image
 
-def plot_neighbours(embedding_details, neighbour_inds, masks_available = False, title = "enter model used as title"):
-        
+def plot_neighbours(embedding_details,
+                    neighbour_inds,
+                    masks_available = False,
+                    title = "enter model used as title",
+                    small_titles = False,
+                    show_full_img = False,
+                    subplot_title_hspace = 0.23,
+                    subplot_title_wspace = 0.1):
+    
+    main_title = title
+
     plotter = concise_ims_and_plots()
 
     num_embeddings, num_neighbours = neighbour_inds.shape
     for object_ind in range(num_embeddings):
-        masked_image = get_masked_crop(embedding_details, object_ind, masks_available = masks_available)
+        masked_image = get_masked_crop(embedding_details, object_ind, masks_available = masks_available, show_full_img = show_full_img)
         class_name = embedding_details["class_names"][object_ind]
-        plotter.add_plot_data(masked_image, f"T:{class_name}")
+        title =  f"T:{class_name}" if not small_titles else "T"
+        plotter.add_plot_data(masked_image, title)
         for i, neighbour_ind in enumerate(neighbour_inds[object_ind]):
-            masked_image = get_masked_crop(embedding_details, neighbour_ind, masks_available = masks_available)
+            masked_image = get_masked_crop(embedding_details, neighbour_ind, masks_available = masks_available, show_full_img = show_full_img)
             class_name = embedding_details["class_names"][neighbour_ind]
-            plotter.add_plot_data(masked_image, f"M:{num_neighbours - i}: {class_name}")
+            title =  f"M:{num_neighbours - i}: {class_name}" if not small_titles else "M"
+            plotter.add_plot_data(masked_image, title)
 
-    plotter.viz_plot_data(title = title)
+    plotter.viz_plot_data(title = main_title,
+                          subplot_title_hspace = subplot_title_hspace,
+                          subplot_title_wspace = subplot_title_wspace)
 
 
 def initialize_maximally_spaced_colors(n_colors):
@@ -218,3 +249,35 @@ def create_frame(images, titles, figsize=(10, 5)):
     
     frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
     return frame
+
+
+def apply_pca(data, n_components=2):
+    """ Apply PCA to reduce dimensions to n_components. """
+    pca = PCA(n_components=n_components)
+    return pca.fit_transform(data), pca
+
+def apply_tsne(data, n_components=2, perplexity=30):
+    """ Apply t-SNE to reduce dimensions to n_components. """
+    tsne = TSNE(n_components=n_components, perplexity=perplexity)
+    return tsne.fit_transform(data), tsne
+
+def plot_embeddings(embeddings, title, colors, xscale = None, yscale = None):
+    """ Plot the 2D embeddings with matplotlib. """
+
+    fig, ax = plt.subplots()
+    x = np.linspace(0, 10, 100)
+    y = np.sin(x)
+    ax.scatter(embeddings[:, 0], embeddings[:, 1], c=colors, edgecolors='k')
+    ax.set_title(title)
+    ax.set_xlabel('Component 1')
+    ax.set_ylabel('Component 2')
+    ax.grid(True)
+    
+    if xscale != None:
+        ax.set_xlim(xscale[0], xscale[1])
+    
+    if yscale != None:
+        ax.set_ylim(yscale[0], yscale[1])
+        
+    plt.close(fig)  # Prevent it from showing immediately
+    return fig
