@@ -1,4 +1,11 @@
 
+"""
+author = "Kumar Selvakumaran", "Mrudula Acharya", "Neel Adke"
+date = "04/24/2024"
+
+Module Docstring
+This file contains the  required functions and classes to load, do inference ,and extract embeddings using the YOLOv3 model 
+"""
 import os
 import sys
 import cv2
@@ -31,27 +38,24 @@ def augment_embedddings(embedding,
                         embedding_border, #tuple([rowmin, colmin, rowmax, colmax])
                         total_embedding_dims,
                         embedding_window_size = 5): #tuple([num rows , num cols]) in image embedding 
+    """
+    Augment the embeddings by mirroring the edges if the designated window is smaller than the required embedding window size.
+
+    Parameters:
+    embedding (np.array): The original embedding matrix.
+    embedding_border (tuple): The bounds of the embedding in the format (rowmin, colmin, rowmax, colmax).
+    total_embedding_dims (tuple): The total dimensions of the embedding matrix as (rows, cols).
+    embedding_window_size (int, optional): The size of the window for the embedding in terms of number of rows and columns. Default is 5.
+
+    Returns:
+    np.array: The augmented embedding matrix.
+    """
     rowmin, colmin, rowmax, colmax = embedding_border
     num_missing_rows = embedding_window_size - (rowmax - rowmin)
     num_missing_cols = embedding_window_size - (colmax - colmin)
     max_embedding_row, max_embedding_col = total_embedding_dims
     
-    # if (num_missing_cols < 0) or (num_missing_rows < 0):
-    #     print("\nEMBEDDING LARGER THAN WINDOW (border embedding augmentation)\n")
-    #     return  1/0
-    # if num_missing_rows + num_missing_cols < 1:
-    #     print(f"\nNO MISSING ROWS OR COLS WHY ARE YOU AUGMENTING (border embedding augmentation)\n")
-    #     return  1/0
-    # elif (num_missing_rows > 2) or (num_missing_cols > 2):
-    #     print(f"\nUNEXPECTED BEHAVIOUR num missing cols ({num_missing_cols})/ rows ({num_missing_rows}) > 2 (border embedding augmentation)")
-    #     return  1/0
-    # elif ((rowmin > 0) and (rowmax < max_embedding_row - 1)) or ((colmin > 0) and (colmax < max_embedding_col - 1)):
-    #     print(f"\nYOU HAVE A BAD SHAPE INTERIOR EMBEDDING (border embedding augmentation)\n")
-    #     return  1/0
-
-    #####
     changed  = False
-    #####    
 
     if num_missing_rows>0:
         print(f"AUGMENTING EMBEDDINGS\n\noriginal_embedding : {(embedding[0, 0, :, :]*1000).astype(int)}, rowmin : {rowmin} ,  colmin : {colmin}, rowmax : {rowmax}, colmax : {colmax}\n")
@@ -91,7 +95,18 @@ def augment_embedddings(embedding,
     return embedding
 
 class yolo_model:
+    """
+    A class for handling object detection tasks using a YOLOv3 model pre-trained on the COCO dataset.
+
+    Attributes:
+    classes (list): List of class names from the COCO dataset.
+    model (torch model): The loaded YOLOv3 model.
+    device (torch.device): The computation device (CUDA if available).
+    """
     def __init__(self):
+        """
+        Initializes the yolo_model class by loading the class names, model configuration, and weights, and setting the device.
+        """
         with open("/app/PyTorch-YOLOv3/data/coco.names", 'r') as rf:
             self.classes = rf.read().split('\n')
 
@@ -107,6 +122,17 @@ class yolo_model:
                     img,
                     img_size=416,
                     conf_thres=0.5):
+        """
+        Runs a forward pass to predict objects in an image without applying non-maximum suppression.
+
+        Parameters:
+        img (numpy array): The input image in BGR format.
+        img_size (int): The size to which the images are resized.
+        conf_thres (float): Confidence threshold to filter detections.
+
+        Returns:
+        torch.Tensor: Raw model detections.
+        """
         self.model.eval()
                 
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -132,6 +158,21 @@ class yolo_model:
                     head= -1,
                     viz = False,
                     reverse_img_for_viz = True):
+        """
+        Predicts bounding boxes for objects detected in the image and optionally visualizes the results.
+
+        Parameters:
+        img (numpy array): The input image in BGR format.
+        img_size (int): The size to which the images are resized.
+        conf_thres (float): Confidence threshold to filter detections.
+        nms_thres (float): Non-maximum suppression threshold.
+        head (int): The specific head of the YOLO model to use.
+        viz (bool): Whether to visualize the results.
+        reverse_img_for_viz (bool): Whether to convert images back to BGR for visualization.
+
+        Returns:
+        tuple: A tuple containing the image with drawn bounding boxes and the list of bounding boxes.
+        """
         
         detections = self.predict_raw(img,
                                       img_size=img_size,
@@ -183,6 +224,23 @@ class yolo_model:
                       viz = True,
                       save = True,
                       save_str = 'default'):
+        """
+        Retrieves embeddings for detected objects in a series of images and optionally saves and visualizes them.
+
+        Parameters:
+        image_paths (list): Paths to the images.
+        img_size (int): The size to which the images are resized.
+        conf_thres (float): Confidence threshold to filter detections.
+        nms_thres (float): Non-maximum suppression threshold.
+        head (int): The specific head of the YOLO model to use for embeddings.
+        embedding_window_size (int): The window size around the detected object for extracting embeddings.
+        viz (bool): Whether to visualize the results.
+        save (bool): Whether to save the embeddings.
+        save_str (str): A string to append to the save filename for uniqueness.
+
+        Returns:
+        tuple: A tuple containing the embedding details and the embedding matrix.
+        """
         
         
         # #XXXXXXXXXXXXXXXXXXXXXXXXXX     video details
@@ -317,6 +375,14 @@ class yolo_model:
                                embedding_details,
                                embedding_matrix,
                                save_str = 'default'):
+        """
+        Saves the embedding details and matrix to file.
+
+        Parameters:
+        embedding_details (dict): Details of the embeddings including bounding boxes and class names.
+        embedding_matrix (numpy array): The embedding matrix.
+        save_str (str): A string to append to the save filename for uniqueness.
+        """
         dataset_hash_key = " ".join(embedding_details['source_paths']) 
         dataset_hash_name = get_string_hash(dataset_hash_key)  + f"_yolo_{save_str}"   
 

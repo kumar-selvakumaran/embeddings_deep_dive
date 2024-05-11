@@ -1,8 +1,17 @@
+"""
+author = "Kumar Selvakumaran", "Mrudula Acharya", "Neel Adke"
+date = "04/24/2024"
+
+Module Docstring
+This script provides utility functions for image manipulation using OpenCV and NumPy. It includes functions to scale images,
+check for overlaps between rectangular regions, apply random scaling to images, and place images onto another with specified
+scaling and shifting parameters. The functions are designed for applications that require image augmentation, composite image
+creation, or similar image processing tasks. The contents are used for making the location-variant dataset.
+"""
+
 import cv2
 import numpy as np
 import random
-
-
 
 def scale_image(img, scale):
     """ Scale an image by a given factor using OpenCV. """

@@ -1,3 +1,11 @@
+"""
+author = "Kumar Selvakumaran", "Mrudula Acharya", "Neel Adke"
+date = "04/24/2024"
+
+Module Docstring
+This file contains the required functions and classes to visualize different types of data in different ways.
+"""
+
 from IPython.display import Image as im 
 from IPython.display import display as dis 
 import matplotlib.pyplot as plt
@@ -12,55 +20,61 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import numpy as np
 import math
 
-# Function from previous instruction
 
 class concise_ims_and_plots:
     """
-    easily plot images and/or plots together in a square subgrid
+    A class for managing and visualizing a collection of images and plots.
 
-    usage : 
-
-    
-    def generate_plot():
-        fig, ax = plt.subplots()
-        x = np.linspace(0, 10, 100)
-        y = np.sin(x)
-        ax.plot(x, y)
-        plt.close(fig)  # Prevent it from showing immediately
-        return fig
-
-    plotter = concise_ims_and_plots()
-
-    plotting_data = []
-
-    for i in range(10):
-        plot = generate_plot()
-        image = np.random.rand(10, 10, 3)
-
-        plotter.add_plot_data(plot, f'plot {i}')
-        plotter.add_plot_data(image, f'image {i}')
-    """
+    Attributes:
+        plot_data (list): A list to store the plot data.
+        titles (list): A list to store titles for each plot.
+        xdim (int): Width of the figure for plotting.
+        ydim (int): Height of the figure for plotting.
+    """    
     def __init__(self,
                 xdim = 15,
                 ydim = 15
                 ):
+        """
+        Initializes the concise_ims_and_plots instance with specified dimensions for the plots.
+
+        Parameters:
+            xdim (int): Width of the plots.
+            ydim (int): Height of the plots.
+        """
         self.plot_data = []
         self.titles = []
         self.xdim = xdim
         self.ydim = ydim
     
     def add_plot_data(self, plot, title):
+        """
+        Adds plot data along with its title to the plot data list.
+
+        Parameters:
+            plot (matplotlib plot): The plot to be added.
+            title (str): The title of the plot.
+        """
         self.plot_data.append(tuple([plot]))
         self.titles.append(title)
 
     def clear_plot_data(self):
+        """Clears all plot data from the list."""
         self.plot_data = []
 
     def viz_plot_data(self, title="Image Grid",
                       mode = "square",
                       subplot_title_hspace = 0.23,
                       subplot_title_wspace = 0.1):
-        
+        """
+        Visualizes all stored plot data in a grid layout.
+
+        Parameters:
+            title (str): The main title of the plot grid.
+            mode (str): Layout mode ('square', 'column', 'row').
+            subplot_title_hspace (float): The vertical space between subplots.
+            subplot_title_wspace (float): The horizontal space between subplots.
+        """
         num_images = len(self.plot_data)
         grid_size = math.ceil(math.sqrt(num_images))
             
@@ -121,12 +135,27 @@ class concise_ims_and_plots:
         plt.show()
 
 def get_bar_plot(data):
+    """
+    Creates a bar plot from the given data.
+
+    Parameters:
+    data (list or ndarray): Data to be plotted as a bar plot.
+
+    Returns:
+    matplotlib.figure.Figure: A figure object containing the bar plot.
+    """
     fig, ax = plt.subplots()
     ax.plot(data)
     plt.close(fig)  # Prevent it from showing immediately
     return fig
 
 def viz_im_small(impath):
+    """
+    Visualizes a small version of an image from a given path.
+
+    Parameters:
+    impath (str): Path to the image file.
+    """
     vizim = cv2.imread(impath)
     cv2.resize(vizim, (100,100))
     plt.imshow(vizim[:, :, ::-1])
@@ -135,6 +164,13 @@ def viz_im_small(impath):
 
 def im_in_window(image,
                  window_title = "image visualization"):
+    """
+    Displays an image in a new window with a specified title.
+
+    Parameters:
+    image (ndarray): The image array to display.
+    window_title (str): Title of the window in which the image will be displayed.
+    """
     viz_window = cv2.namedWindow(window_title)
     cv2.imshow(viz_window, image)
     cv2.waitKey(0)
@@ -142,6 +178,18 @@ def im_in_window(image,
 
 
 def get_masked_crop(embedding_details, object_ind, masks_available = False, show_full_img = False):
+    """
+    Retrieves a cropped portion of an image based on bounding box and masking details.
+
+    Parameters:
+    embedding_details (dict): Contains all embedding details including paths and bounding boxes.
+    object_ind (int): Index of the object/embedding to process.
+    masks_available (bool): Flag to indicate if masks are available and should be applied.
+    show_full_img (bool): Flag to indicate if the full image should be shown with highlighted object.
+
+    Returns:
+    ndarray: The processed (cropped/masked) image.
+    """
     source_path = embedding_details['source_paths'][object_ind]
     image = cv2.imread(source_path)
     bbox = embedding_details["bounding_boxes"][object_ind][0]
@@ -176,6 +224,19 @@ def plot_neighbours(embedding_details,
                     show_full_img = False,
                     subplot_title_hspace = 0.23,
                     subplot_title_wspace = 0.1):
+    """
+    Plots images of objects and their neighbours from embedding details.
+
+    Parameters:
+    embedding_details (dict): Details of embeddings including images and metadata.
+    neighbour_inds (ndarray): Indices of neighbouring objects to be plotted.
+    masks_available (bool): If true, applies masks to the images.
+    title (str): Main title for the plot.
+    small_titles (bool): If true, uses minimal text for subplot titles.
+    show_full_img (bool): If true, displays the full images with the objects highlighted.
+    subplot_title_hspace (float): Vertical space between subplots.
+    subplot_title_wspace (float): Horizontal space between subplots.
+    """
     
     main_title = title
 
@@ -199,11 +260,31 @@ def plot_neighbours(embedding_details,
 
 
 def initialize_maximally_spaced_colors(n_colors):
+    """
+    Generates a list of maximally spaced colors in RGB format.
+
+    Parameters:
+    n_colors (int): Number of colors to generate.
+
+    Returns:
+    list: A list of RGB colors.
+    """
     colors_hsv = [(i * 360 / n_colors, 1, 1) for i in range(n_colors)]
     colors_rgb = [tuple(int(c * 255) for c in cv2.cvtColor(np.array([[hsv_color]], dtype=np.float32), cv2.COLOR_HSV2BGR)[0,0]) for hsv_color in colors_hsv]
     return colors_rgb
 
 def draw_bounding_boxes(image, bounding_boxes, class_names):
+    """
+    Draws bounding boxes with class labels on the image.
+
+    Parameters:
+    image (numpy array): The image on which to draw.
+    bounding_boxes (list of tuples): List of tuples containing bounding box coordinates and class indices.
+    class_names (list): List of class names corresponding to class indices.
+
+    Returns:
+    numpy array: The image with bounding boxes and labels drawn.
+    """
     n_classes = len(class_names)
     colors = initialize_maximally_spaced_colors(n_classes)
     thickness = max(1, int((image.shape[0] + image.shape[1]) / 1000))
@@ -224,6 +305,17 @@ def draw_bounding_boxes(image, bounding_boxes, class_names):
 
 
 def create_frame(images, titles, figsize=(10, 5)):
+    """
+    Creates a frame containing multiple images with titles.
+
+    Parameters:
+    images (list of numpy arrays): The images to display.
+    titles (list of str): Titles for each image.
+    figsize (tuple): Size of the figure (width, height).
+
+    Returns:
+    numpy array: An image array representing the created frame.
+    """
     layout = (1, len(images))  # Change layout to have enough spots for each image
     
     total_subplots = layout[0] * layout[1]
@@ -252,17 +344,48 @@ def create_frame(images, titles, figsize=(10, 5)):
 
 
 def apply_pca(data, n_components=2):
-    """ Apply PCA to reduce dimensions to n_components. """
+    """
+    Applies PCA to the data and reduces its dimensions.
+
+    Parameters:
+    data (numpy array): The data to be transformed.
+    n_components (int): Number of principal components to retain.
+
+    Returns:
+    tuple: A tuple containing the transformed data and the PCA object.
+    """
     pca = PCA(n_components=n_components)
     return pca.fit_transform(data), pca
 
 def apply_tsne(data, n_components=2, perplexity=30):
-    """ Apply t-SNE to reduce dimensions to n_components. """
+    """
+    Applies t-SNE to the data and reduces its dimensions.
+
+    Parameters:
+    data (numpy array): The data to be transformed.
+    n_components (int): Number of dimensions to reduce to.
+    perplexity (int): Perplexity parameter for t-SNE.
+
+    Returns:
+    tuple: A tuple containing the transformed data and the t-SNE object.
+    """
     tsne = TSNE(n_components=n_components, perplexity=perplexity)
     return tsne.fit_transform(data), tsne
 
 def plot_embeddings(embeddings, title, colors, xscale = None, yscale = None):
-    """ Plot the 2D embeddings with matplotlib. """
+    """
+    Plots 2D embeddings with specified axes scales.
+
+    Parameters:
+    embeddings (numpy array): The embedding points to plot.
+    title (str): Title of the plot.
+    colors (list): Colors for each point in the embeddings.
+    xscale (tuple, optional): X-axis scale (min, max).
+    yscale (tuple, optional): Y-axis scale (min, max).
+
+    Returns:
+    matplotlib.figure.Figure: The figure object containing the plot.
+    """
 
     fig, ax = plt.subplots()
     x = np.linspace(0, 10, 100)

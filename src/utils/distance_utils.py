@@ -1,3 +1,11 @@
+"""
+author = "Kumar Selvakumaran", "Mrudula Acharya", "Neel Adke"
+date = "04/24/2024"
+
+Module Docstring
+This file contains the required function to find K nearest neighbors
+"""
+
 import torch
 import numpy as np
 
@@ -18,9 +26,21 @@ ii) [n x 3] numpy array of numpy arrays : images corresponding to the above imag
 """
 
 def get_k_nearest(embedding_matrix, embedding_names, k):
-    # embedding_names = np.array(list(embedding_dict.keys()))
-    # embedding_matrix = np.array(list(embedding_dict.values()))
-    # input_masked_crops  = np.array(list(input_dict.values()))
+    """
+    Computes the k-nearest neighbors for each embedding in the matrix using cosine similarity.
+
+    Parameters:
+        embedding_matrix (numpy.ndarray): The matrix of embeddings where each row is an embedding.
+        embedding_names (numpy.ndarray): Array of names corresponding to the embeddings.
+        k (int): The number of nearest neighbors to retrieve for each embedding.
+
+    Returns:
+        numpy.ndarray: An array of indices corresponding to the k-nearest neighbors for each embedding.
+
+    Note:
+        The function normalizes the embeddings, computes the cosine similarity matrix, and retrieves the indices
+        of the top k nearest neighbors for each embedding, excluding the self-similarity.
+    """
 
     norms = np.linalg.norm(embedding_matrix, axis=1, keepdims=True)
     
@@ -31,6 +51,5 @@ def get_k_nearest(embedding_matrix, embedding_names, k):
     cosine_similarity_matrix -= np.eye(embedding_matrix.shape[0]) * cosine_similarity_matrix.max()
 
     neighbour_inds = (cosine_similarity_matrix).argsort(axis =  1)[:, -k:]
-
-    # return embedding_names[neighbour_inds], input_masked_crops[neighbour_inds]    
+  
     return neighbour_inds

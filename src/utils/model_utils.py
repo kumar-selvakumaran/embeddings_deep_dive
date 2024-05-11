@@ -1,3 +1,10 @@
+"""
+author = "Kumar Selvakumaran", "Mrudula Acharya", "Neel Adke"
+date = "04/24/2024"
+
+Module Docstring
+This class contains the interface functions and classes that uses the embeddor, segmentor and detector , to process data and extract embeddings.
+"""
 import numpy as np
 from typing import List
 import cv2
@@ -17,43 +24,34 @@ GROUNDING_DINO_CHECKPOINT_PATH = os.path.join("../bin/model_files", "groundingdi
 SAM_CHECKPOINT_PATH = os.path.join("../bin/model_files", "sam_vit_h_4b8939.pth")
 
 
-
-"""
-A class that takes in images, 
-
-stores data in the following format:
-
-object_data (NOTE : it only appending is allowed): 
-    # ith index in these arrays corresponds to ith row in the embedding matrix 
-    masks : np.arary([np.array(), np.array(), ... #total_objects])
-    bounding_boxes : np.array(), [#total_objects x 4]
-    source_path : np.array(strs)[1x4],
-    class_names : np.array(strs)[1x4]
-
-    
-embedding_data (NOTE : it only appending is allowed): 
-{
-    "<embedding_type>_<black/og background>" : np.array() , shape : [num_objects x flattened_embedding_size]
-    .
-    .
-    .
-}
-
-segmentor = SAM
-detector = grounding DINO
-
-embedder = embedder is a class following a universal template, where an arbitrary model is used to produce embeddings 
-given an image and a BB corresponding to the box
-
-usage : 
-    i) extracts objects based on a given prompt from each image of an image list, and stores relevant object details,
-    ii) runs the embedder for each of the objects, and appends the embedding matrix
-"""
 class object_embedder:
+    """
+    A class designed to handle object detection, segmentation, and embedding extraction.
+
+    Attributes:
+        segmentor (object): An instance of a segmentation model.
+        detector (object): An instance of a detection model.
+        embeddor (object): An instance responsible for generating embeddings from detected objects.
+        masks (list): List to store masks for detected objects.
+        bboxes_xyxy (list): List to store bounding box coordinates for detected objects.
+        source_paths (list): List of source image paths processed.
+        class_names (list): List of class names for detected objects.
+        confidences (list): List of confidence scores for detected objects.
+        embedding_matrix (numpy.ndarray): Matrix storing the extracted embeddings for all detected objects.
+    """
+
     def __init__(self,
                  segmentor = None,
                  detector = None,
                  embeddor = None):
+        """
+        Initializes the object_embedder with provided models.
+
+        Parameters:
+            segmentor (object, optional): The segmentation model.
+            detector (object, optional): The detection model.
+            embeddor (object, optional): The embedding model.
+        """
         
         self.segmentor, self.detector, self.embeddor = segmentor, detector, embeddor
 
@@ -73,6 +71,22 @@ class object_embedder:
                         viz_outputs = False,
                         in_window = False,
                         model_type = 'unknown'):
+        """
+        Processes a list of image paths to detect objects, perform segmentation, and extract embeddings.
+
+        Parameters:
+            image_paths (list): List of paths to the images.
+            classes (list): List of class names.
+            box_threshold (float): Confidence threshold for bounding box detection.
+            text_threshold (float): Confidence threshold for text detection.
+            do_segment (bool): Flag to perform segmentation on detected objects.
+            viz_outputs (bool): Flag to visualize the detection results.
+            in_window (bool): Flag to display results in a separate window.
+            model_type (str): Type of model used for processing, used for saving data.
+
+        Outputs:
+            Processes each image, detecting objects, optionally segmenting them, extracting embeddings, and potentially visualizing the results.
+        """
         
         classes.append('No Class')
 
@@ -161,6 +175,15 @@ class object_embedder:
         
     def save_data(self,
                   model_type = 'unknown'):
+        """
+        Saves detection and embedding data to files.
+
+        Parameters:
+            model_type (str): Descriptive string for the type of model, appended to save filenames.
+
+        Outputs:
+            Saves masks, bounding boxes, confidences, class names, source paths, and embeddings to respective files.
+        """
         
         dataset_hash_key = " ".join(self.source_paths) 
         dataset_hash_name = get_string_hash(dataset_hash_key)  + f"_{model_type}"   
@@ -184,29 +207,21 @@ class object_embedder:
 
     def plot_results(self,
                      in_window = False):
-        
-            plot_detections(self.input_image,
-                            self.detections,
-                            self.prompt_classes,
-                            in_window = in_window
-                            )
-            
-class custom_detections:
-    def __init__(self,
-                 xyxy,
-                 masks,
-                 confidences,
-                 class_ids):
-        
-        if not(len(boxes) == len(masks) == len(confidences) == len(class_ids)):
-            print(f"\nthere must be same # of boxes ({len(boxes)}), masks ({len(masks)}), confs ({len(confidences)}), and cls_ids ({len(class_ids)}). ")
-            return -1
-        self.xyxy = xyxy
-        self.mask = masks
-        self.confidence = confidences
-        self.class_id = class_ids
+        """
+        Visualizes the detection results.
+
+        Parameters:
+            in_window (bool): Flag to display results in a separate window.
+        """
+    
+        plot_detections(self.input_image,
+                        self.detections,
+                        self.prompt_classes,
+                        in_window = in_window
+                        )
             
 def enhance_class_name(class_names: List[str]) -> List[str]:
+    """formats a list of class names"""
     return [
         f"all {class_name}s"
         for class_name
@@ -220,6 +235,18 @@ def plot_detections(image,
                     in_window = False,
                     do_segment = True
                     ):
+    """
+    Annotates and displays an image with detection results including bounding boxes and segmentation masks.
+
+    Parameters:
+        image (numpy array): The image to annotate and display.
+        detections (list): List of detection tuples with coordinates, confidence, and class indices.
+        classes (list of str): Class names corresponding to the class indices in detections.
+        in_window (bool, optional): If True, displays the image in a separate window; otherwise inline.
+        do_segment (bool, optional): If True, applies segmentation masks to the detections.
+
+    Uses `BoxAnnotator` and `MaskAnnotator` for drawing bounding boxes and segmentation masks respectively.
+    """
     box_annotator = sv.BoxAnnotator()
     mask_annotator = sv.MaskAnnotator()
     labels = [
