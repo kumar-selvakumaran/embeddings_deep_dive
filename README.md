@@ -1,13 +1,3 @@
-# Final Project
-
-## Group : Kumar Selvakumaran, Neel Adke, Mrudula Acharya 
-
-## No time travel days
-
-## VIDEO PRESENTATION LINK : <a href="https://drive.google.com/file/d/1-zomMH74w2jCPZiBeuPVvSINlyREw7hf/view?usp=drive_link">video link</a>
-
-
-
 OS and ide:<br>
 - Windows 11 with Docker for development
 - docker desktop version : v4.22.1
