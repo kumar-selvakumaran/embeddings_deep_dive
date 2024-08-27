@@ -2,15 +2,25 @@
 
 ## the idea
 
-Neural networks are not simply black boxes that solvea single task. A deeper understanding of them will lead to a realization that they are hierarchial information extractors/compressors. 
+Neural networks are not simply black boxes that solve a single task. A deeper understanding of them will lead to a realization that they are hierarchial information extractors/compressors.
 
-For a more intuitive understanding, consider that we have a trained dog/cat classifier. Let's say you are looking to adopt a dog, and you want a small, not very furry dog. What if I say using a simple neural network classifier, I can recommend which dogs are to your taste, given a single sample! 
+For a more intuitive understanding, consider that we have a dog/cat classifier. Let's say you are looking to adopt a dog, and you want a small, not very furry dog. What if I say a simple neural network classifier can recommend which dogs are to your taste, given a single sample!
 
-A classifier is capable of doing this because, in addition to answering whether an object is simply a dog/cat, it actually learns different features of the object, and the presence of relevant features guide the predicted class.
+A classifier is capable of doing this because, in addition to answering whether an object is simply a dog/cat, it actually learns different features of the object, and the presence of relevant features which collectively inform a prediction.
 
-**given an example containing desired features (small / less furry / colour of your choice) we can find other images/objects(dogs/cats) from a database of images that have these features, hence recommending dogs/cats with features of your liking**
+**given an example containing desired features (small / less furry / colour of your choice) we can find other images/objects(dogs/cats) from a database of images that have these features, hence finding other dogs/cats with features of your liking**
 
-This idea is called *Content based image retrieval*, and this project takes it further by using an object detector instead of a classifier. This implies that given an image cluttered with different objects, you can say **show me other images that have couches like the one in this image**
+This idea is called *Content based image retrieval*, and this project takes this idea further by using an object detector instead of a classifier. This implies that given an image cluttered with different objects, you can say **show me other images that have couches like the one in this image**
+
+## Applications
+
+Some situations where this workflow can be applied:
+
+1. Searching a furniture catalogue for furniture of similar features/theme/aesthetics.
+
+2. Grouping products by aesthetic or visual similarities.
+
+Automating these kind of abstract and subjective tasks can be vital as it creates a sophisticated user experience.
 
 ## The workflow : 
 
