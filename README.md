@@ -1,26 +1,64 @@
-OS and ide:<br>
+# Neural Network based similar object finder
+
+
+## the idea
+
+Neural networks are not simply black boxes that solvea single task. A deeper understanding of them will lead to a realization that they are hierarchial information extractors/compressors. 
+
+For a more intuitive understanding, consider that we have a trained dog/cat classifier. Let's say you are looking to adopt a dog, and you want a small, not very furry dog. What if I say using a simple neural network classifier, I can recommend which dogs are to your taste, given a single sample! 
+
+A classifier is capable of doing this because, in addition to answering whether an object is simply a dog/cat, it actually learns different features of the object, and the presence of relevant features guide the predicted class.
+
+**given an example containing desired features (small / less furry / colour of your choice) we can find other images/objects(dogs/cats) from a database of images that have these features, hence recommending dogs/cats with features of your liking**
+
+This idea is called *Content based image retrieval*, and this project takes it further by using an object detector instead of a classifier. This implies that given an image cluttered with different objects, you can say **show me other images that have couches like the one in this image**
+
+## The workflow : 
+
+
+<center>
+<img src="./imgs/workflow.jpg" alt="workflow" />
+</center><br>
+
+given an image with many objects and a chosen object, the object finder network finds other images with objects similar to the chosen object by going through the following steps :
+
+1. getting the locations of the different objects in the image from a simple forward pass of the image through the object detection network.
+
+<center>
+<img src="./imgs/locations.png" alt="drawing" style="width:300px"/>
+</center>
+
+2. Getting all the extracted features (refered to as embedding in the flowchart) from the object detection network.
+
+3. using the object locations obtained before to "slice" the relevant parts of the extracted features that is specific to the chosen object
+
+(in the below visualization, the 3x3 cell grid around the yellow grid represents the slice of the "embedding" corresponding tho the area enclosed withing the black square on the right.)
+
+<center>
+<img src="./imgs/fig3.jpg" alt="drawing" />
+</center>
+
+
+## OS and ide:
+
 - Windows 11 with Docker for development
 - docker desktop version : v4.22.1
 - docker version : 24.0.5
 - Container is run on WSL2 with ubuntu 22.04
 
-## instructions for exectuing runnables.
+## instructions for exectuing runnables
 
 Using the following environment variables, the below commands (mentioned defining the varibales) can be run in the terminal to create and run the executables.
 
-- Compiler<br>
-<code>
-Python 3.7
-</code>
+- Compiler : ```Python 3.7```
 
+## commands for executing the code
 
-## commands for executing the code:
+### run/ go through the notebooks in the following
 
-### run/ go through the notebooks in the following: 
-
-1. <code>init_setup.ipynb</code>
-2. <code>Resnet_embedding_collector.ipynb</code>
-3. <code>embedding_KNN_analyzer.ipynb</code>
-4. <code>Yolo_embedding_collector.ipynb</code>
-5. <code>embedding_KNN_analyzer.ipynb</code>
-6. <code>Location_information_analysis.ipynb</code>
+1. init_setup.ipynb
+2. Resnet_embedding_collector.ipynb
+3. embedding_KNN_analyzer.ipynb
+4. Yolo_embedding_collector.ipynb
+5. embedding_KNN_analyzer.ipynb
+6. Location_information_analysis.ipynb
