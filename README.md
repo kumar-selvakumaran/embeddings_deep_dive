@@ -1,6 +1,5 @@
 # Neural Network based similar object finder
 
-
 ## the idea
 
 Neural networks are not simply black boxes that solvea single task. A deeper understanding of them will lead to a realization that they are hierarchial information extractors/compressors. 
@@ -38,6 +37,25 @@ given an image with many objects and a chosen object, the object finder network 
 <img src="./imgs/fig3.jpg" alt="drawing" />
 </center>
 
+4. Using the extracted chosen obeject's features (object-specicific embedding), a similarity search (K nearest neighbours algorithm) is done against a set of pre-computed object-features from a dataset.
+
+5. Finally, the object features that are most similar to those of the chosen object are found and the corresponding images are given as the output.
+
+Below, you can see an extensive experiment, where different targets and their corresponding matches are visualized. each target image starts with the initial **T** , and followed by matches (with title **M**) ordered by decreasing similarity.
+
+
+<center>
+<img src="./imgs/fig5.png" alt="experiment" />
+</center>
+
+## Findings:
+
+From the above experiment, we observe that many object feautures like colour, texture, and even its appearance under the lighting in that particular image are extracted and can be leveraged for a variety of tasks, like similarity searches, and recommendations.
+___
+<br>
+<br>
+
+# Code specific instructions:
 
 ## OS and ide:
 
